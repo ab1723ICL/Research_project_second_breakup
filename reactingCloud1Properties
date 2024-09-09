@@ -1,0 +1,342 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.1.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      reactingCloud1Properties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solution
+{
+    active          true;
+    coupled         true;
+    transient       true;
+    cellValueSourceCorrection off;  
+    maxCo           0.3;
+
+    sourceTerms
+    {
+        schemes
+        {
+            rho             explicit 1;
+            U               explicit 1;  //  explicit/semiImplicit
+            Yi              explicit 1;
+            h               explicit 1;
+            radiation       explicit 1;  // not used
+
+            rhoYs           explicit 1;
+        }
+    }
+
+    interpolationSchemes
+    {
+        rho             cell;
+        U               cellPoint;
+        thermo:mu       cell;
+        T               cell;
+        Cp              cell;
+        kappa           cell;
+        p               cell;
+	ElectricFieldStrength cell;
+    }
+
+    integrationSchemes
+    {
+        U               Euler;
+        T               analytical;
+    }
+}
+
+constantProperties
+{
+    //parcelTypeId    1;
+
+    //rhoMin          1e-15;
+    TMin              300;
+    //pMin            1000;
+    minParticleMass   1e-15;
+
+    rho0            661.83;      // heptane density at 320K
+    T0              320;
+    Cp0             2330.5; // cp of heptane at T0=320K;
+    //Qdens0          -1.35; // cp of heptane at T0=320K;
+
+    //youngsModulus   1e9;
+    //poissonsRatio   0.35;
+
+    epsilon0        1;
+    //f0              0.5;
+    //Pr              0.7;
+    //Tvap            273;
+    //Tbp             373;
+
+    constantVolume  false;
+}
+
+subModels
+{
+    particleForces
+    {
+        sphereDrag;
+	    lorentz;
+        gravity;
+    }
+
+    injectionModels
+    {
+        model_1
+        {
+    	    Qdens           -21.13; // electric charge density of the particle
+
+            SOI             0;
+            parcelBasisType mass;
+            massTotal       2.22e-09;	// [kg] ... use massTotal and duration to fix flow rate
+                                        // e.g. for a liquid fuel flow rate 0.27 g/s,
+                                        //      in a durtion of 1000 s, the fuel mass injected is 0.270 kg
+            duration        1e-3;       // [s]  ... time after SOI
+            parcelsPerSecond 1.60e5;      // = smaller m_dot divided by mass of largest droplet
+
+                // type            patchInjection;
+                // patchName       INLET;
+                // U0              (0 0 10);
+
+            type            coneInjection; // ew419 - 2020/04/28: changed from "coneNozzleInjection";
+            injectionMethod point;  // disc;
+            position        (0.0 0.0 0.0);
+            direction       ( 0 0 1);
+            outerDiameter   2.07e-5;  //need for disc and point 
+            innerDiameter   0.0; 
+            thetaInner      0.0;  // 60deg cone --> 30deg +/- 2.5deg
+            thetaOuter      0.0;
+
+            flowType        constantVelocity;
+            Umag            10.0;    // [m/s], 		ew419 - 2020/04/29: UMag now called Umag
+
+                 // flowType        flowRateAndDischarge;
+                 // Cd              constant 1; // discharge Coeff. = A_eff/A_nozzel
+
+            flowRateProfile constant 1;   // flow rate profile relative to SOI
+
+            sizeDistribution
+            {
+                type uniform;
+                uniformDistribution
+                {
+                    minValue        20e-06;
+                    maxValue        20e-06;
+                }
+                //type         RosinRammler;
+                //RosinRammlerDistribution
+                //{
+                //    minValue        1e-6;
+                //    maxValue        120e-6;
+                //    d               50e-06;
+                //    n               4.0;
+                //}
+
+                //type        general;
+                generalDistribution  // general distribution from experiment for z=10mm
+                {
+                    distribution
+                    (
+                        ( 1.0e-06     0 )
+                        ( 2.0e-06     212.2523 )
+                        ( 3.0e-06     692.9399 )
+                        ( 4.0e-06     1623.0929 )
+                        ( 5.0e-06     3152.5078 )
+                        ( 6.0e-06     5430.935 )
+                        ( 7.0e-06     8608.0382 )
+                        ( 8.0e-06     12833.3327 )
+                        ( 9.0e-06     18256.101 )
+                        ( 10.0e-06     25025.2796 )
+                        ( 11.0e-06     33289.3147 )
+                        ( 12.0e-06     43195.9827 )
+                        ( 13.0e-06     54892.1702 )
+                        ( 14.0e-06     68523.6123 )
+                        ( 15.0e-06     84234.5833 )
+                        ( 16.0e-06     102167.5378 )
+                        ( 17.0e-06     122462.6978 )
+                        ( 18.0e-06     145257.5844 )
+                        ( 19.0e-06     170686.4889 )
+                        ( 20.0e-06     198879.8834 )
+                        ( 21.0e-06     0 )
+                    );
+                }
+            } //size distribution
+        }  // model 1
+ 
+    }
+
+
+    dispersionModel  none;  // stochasticDispersionRAS;
+
+    patchInteractionModel standardWallInteraction;
+
+    heatTransferModel RanzMarshall;   // ... over-written in A-S model
+
+    compositionModel singlePhaseMixture; //singleMixtureFraction;
+
+    phaseChangeModel liquidEvaporation;  // ... liquidEvaporationBoil; modified to run with Abramzon & Sirignano model
+
+    devolatilisationModel none;
+
+    surfaceReactionModel none;
+
+    surfaceFilmModel none;
+
+    atomizationModel none;
+
+    breakupModel     efTAB; //ReitzKHRT; ReitzDiwakar;
+
+    stochasticCollisionModel none;
+
+    radiation       off;
+
+
+    standardWallInteractionCoeffs
+    {
+        type            rebound;
+    }
+
+    RanzMarshallCoeffs
+    {
+        BirdCorrection  false;   // true;
+    }
+
+    singleMixtureFractionCoeffs
+    {
+        phases
+        (
+            gas
+            {
+            }
+            liquid
+            {
+                C7H16        1;
+            }
+            solid
+            {
+            }
+        );
+    YGasTot0        0;
+    YLiquidTot0     1;
+    YSolidTot0      0;
+    }
+
+    singlePhaseMixtureCoeffs
+    {
+        phases
+        (
+            liquid
+            {
+                C7H16               1;
+            }
+        );
+    }    
+
+    liquidEvaporationCoeffs
+    {
+        enthalpyTransfer enthalpyDifference; //... consistent with A-S model !!!  // enthalpyDifference;
+
+        activeLiquids    ( C7H16 );
+    }
+
+
+    ReitzDiwakarCoeffs
+      {
+          solveOscillationEq yes;
+          Cbag            6;
+          Cb              0.785;
+          Cstrip          0.5;
+          Cs              10;
+      }
+      ReitzKHRTCoeffs
+      {
+          solveOscillationEq yes;
+          B0              0.61;
+          B1              40;
+          Ctau            1;
+          CRT             0.1;
+          msLimit         0.2;
+          WeberLimit      6;
+      }
+  
+      TABCoeffs
+      {
+          y0              0;
+          yDot0           0;
+          Cmu             10;
+          Comega          8;
+          WeCrit          12;
+      }
+      
+      efTABCoeffs
+      {
+        y0              0;
+        yDot0           0;
+        Cmu             10;
+        Comega          8;
+        WeCrit          12;
+        SMDCalculationMethod  method2;
+      }  
+
+    /* // NOT USED
+    coneInjectionCoeffs
+    {
+        SOI             1.000;
+        duration        1000.000;
+        positionAxis
+        (
+            ((0.0 0.001 0.0) (0 -1 0))
+            
+        );
+
+        massTotal       0.27;    // kg in whole duration
+        parcelsPerInjector 20000;
+        parcelsPerSecond 500;
+        parcelBasisType mass;
+        flowRateProfile constant 0.1;
+        Umag            constant 3.0;
+        thetaInner      constant 0;
+        thetaOuter      constant 45;
+
+        sizeDistribution
+        {
+            type         RosinRammler;
+            RosinRammlerDistribution
+            {
+                minValue        5e-04;
+                maxValue        0.0012;
+                d               7.5e-05;
+                n               0.5;
+            }
+        }
+    }
+    */
+
+}   //submodels
+
+cloudFunctions
+{
+    voidFrac
+    {
+    	type        voidFraction;
+    }
+    rhoQ1
+    {
+    	type        chargeDensity;
+    }
+}
+
+
+// ************************************************************************* //
+
